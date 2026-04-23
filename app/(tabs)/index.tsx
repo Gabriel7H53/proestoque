@@ -1,98 +1,110 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import React from 'react';
+import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { theme } from '../../src/constants/theme';
 
 export default function HomeScreen() {
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        <View style={styles.header}>
+          <Text style={styles.greeting}>Olá, João 👋</Text>
+          <Text style={styles.subtitle}>Visão geral do seu estoque</Text>
+        </View>
+
+        <View style={styles.mainCard}>
+          <Text style={styles.mainCardLabel}>Total em produtos</Text>
+          <Text style={styles.mainCardValue}>247</Text>
+        </View>
+
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Categorias</Text>
+            <Text style={styles.statValue}>12</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <Text style={styles.statLabel}>Alertas</Text>
+            <Text style={[styles.statValue, styles.alertValue]}>5</Text>
+          </View>
+        </View>
+
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  safeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  container: {
+    flex: 1,
+    padding: theme.spacing[6],
+  },
+  header: {
+    marginBottom: theme.spacing[6],
+    marginTop: theme.spacing[4],
+  },
+  greeting: {
+    fontSize: theme.typography.fontSize['2xl'],
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.neutral[900],
+    marginBottom: theme.spacing[1],
+  },
+  subtitle: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.neutral[500],
+  },
+  mainCard: {
+    backgroundColor: theme.colors.primary[500],
+    borderRadius: theme.borderRadius.xl,
+    padding: theme.spacing[6],
+    marginBottom: theme.spacing[4],
+  },
+  mainCardLabel: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.medium,
+    marginBottom: theme.spacing[1],
+  },
+  mainCardValue: {
+    color: theme.colors.white,
+    fontSize: 48,
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+  statsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing[10],
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  statCard: {
+    flex: 1,
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing[4],
+    borderWidth: 1,
+    borderColor: theme.colors.neutral[200],
+    marginHorizontal: theme.spacing[1],
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  statLabel: {
+    color: theme.colors.neutral[500],
+    fontSize: theme.typography.fontSize.sm,
+    marginBottom: theme.spacing[2],
+  },
+  statValue: {
+    color: theme.colors.neutral[900],
+    fontSize: theme.typography.fontSize['3xl'],
+    fontWeight: theme.typography.fontWeight.bold,
+  },
+  alertValue: {
+    color: theme.colors.danger.base,
+  },
+  bottomText: {
+    textAlign: 'center',
+    color: theme.colors.neutral[400],
+    fontSize: theme.typography.fontSize.sm,
+    fontStyle: 'italic',
   },
 });
