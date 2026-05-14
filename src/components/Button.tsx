@@ -11,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
 
-type ButtonVariant = 'primary' | 'outline' | 'ghost' | 'danger';
+type ButtonVariant = 'primary' | 'outline' | 'ghost' | 'danger' | 'danger-outline';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends TouchableOpacityProps {
@@ -68,6 +68,13 @@ export const Button: React.FC<ButtonProps> = ({
           borderWidth: 1,
         };
         break;
+      case 'danger-outline':
+        baseStyle = {
+          backgroundColor: 'transparent',
+          borderColor: theme.colors.danger.base,
+          borderWidth: 1,
+        };
+        break;
     }
 
     // Size styles
@@ -106,6 +113,9 @@ export const Button: React.FC<ButtonProps> = ({
       case 'ghost':
         textStyle.color = theme.colors.primary[500];
         break;
+      case 'danger-outline':
+        textStyle.color = theme.colors.danger.base;
+        break;
     }
 
     switch (size) {
@@ -131,6 +141,8 @@ export const Button: React.FC<ButtonProps> = ({
       case 'outline':
       case 'ghost':
         return theme.colors.primary[500];
+      case 'danger-outline':
+        return theme.colors.danger.base;
     }
   };
 

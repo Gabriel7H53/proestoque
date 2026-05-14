@@ -3,11 +3,11 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  SafeAreaView, 
   FlatList, 
   RefreshControl, 
   TouchableOpacity 
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../src/constants/theme';
 import { 
@@ -19,10 +19,20 @@ import {
   Produto
 } from '../../src/data/mockData';
 import { useRouter } from 'expo-router';
+import { useAuth } from '../../src/contexts/AuthContext';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+
+  // Saudação baseada no horário
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Bom dia';
+    if (hour < 18) return 'Boa tarde';
+    return 'Boa noite';
+  };
 
   // Simulating refresh
   const onRefresh = useCallback(() => {
@@ -73,26 +83,33 @@ export default function HomeScreen() {
   const renderHeader = () => (
     <View style={styles.headerContainer}>
       <View style={styles.greetingHeader}>
-        <Text style={styles.greeting}>Olá, João 👋</Text>
-        <Text style={styles.subtitle}>Visão geral do seu estoque</Text>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.greeting}>{getGreeting()}, {user?.nome || 'Usuário'} 👋</Text>
+            <Text style={styles.subtitle}>Visão geral do seu estoque</Text>
+          </View>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{user?.nome?.charAt(0).toUpperCase() || 'U'}</Text>
+          </View>
+        </View>
       </View>
 
       <View style={styles.summaryGrid}>
-        <View style={[styles.summaryCard, styles.summaryCardPrimary]}>
-          <Text style={styles.summaryCardLabelLight}>Valor em estoque</Text>
-          <Text style={styles.summaryCardValueLight}>{formatarPreco(valorTotal)}</Text>
-        </View>
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryCardLabel}>Total de produtos</Text>
           <Text style={styles.summaryCardValue}>{totalProdutos}</Text>
+          <Text style={styles.summaryCardLabel}>Produtos</Text>
+        </View>
+        <View style={[styles.summaryCard, styles.summaryCardWarning]}>
+          <Text style={styles.summaryCardValueWarning}>{produtosBaixoEstoque.length}</Text>
+          <Text style={styles.summaryCardLabelWarning}>Alertas</Text>
         </View>
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryCardLabel}>Categorias</Text>
           <Text style={styles.summaryCardValue}>{totalCategorias}</Text>
+          <Text style={styles.summaryCardLabel}>Categorias</Text>
         </View>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryCardLabel}>Alertas</Text>
-          <Text style={[styles.summaryCardValue, styles.alertValue]}>{produtosBaixoEstoque.length}</Text>
+        <View style={[styles.summaryCard, styles.summaryCardSuccess]}>
+          <Text style={styles.summaryCardValueSuccess}>{formatarPreco(valorTotal)}</Text>
+          <Text style={styles.summaryCardLabelSuccess}>Valor</Text>
         </View>
       </View>
 
@@ -175,6 +192,24 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing[6],
     marginTop: theme.spacing[2],
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: theme.colors.primary[100],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: theme.typography.fontSize.xl,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.primary[500],
+  },
   greeting: {
     fontSize: theme.typography.fontSize['2xl'],
     fontWeight: theme.typography.fontWeight.bold,
@@ -200,34 +235,43 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.neutral[200],
   },
-  summaryCardPrimary: {
-    width: '100%',
-    backgroundColor: theme.colors.primary[500],
-    borderColor: theme.colors.primary[500],
+  summaryCardWarning: {
+    backgroundColor: theme.colors.warning.light,
+    borderColor: theme.colors.warning.light,
+  },
+  summaryCardSuccess: {
+    backgroundColor: theme.colors.success.light,
+    borderColor: theme.colors.success.light,
   },
   summaryCardLabel: {
     color: theme.colors.neutral[500],
     fontSize: theme.typography.fontSize.sm,
-    marginBottom: theme.spacing[1],
   },
-  summaryCardLabelLight: {
-    color: 'rgba(255, 255, 255, 0.8)',
+  summaryCardLabelWarning: {
+    color: theme.colors.warning.dark,
     fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.medium,
-    marginBottom: theme.spacing[1],
+  },
+  summaryCardLabelSuccess: {
+    color: theme.colors.success.dark,
+    fontSize: theme.typography.fontSize.sm,
   },
   summaryCardValue: {
     color: theme.colors.neutral[900],
     fontSize: theme.typography.fontSize['3xl'],
     fontWeight: theme.typography.fontWeight.bold,
+    marginBottom: theme.spacing[1],
   },
-  summaryCardValueLight: {
-    color: theme.colors.white,
-    fontSize: theme.typography.fontSize['4xl'],
+  summaryCardValueWarning: {
+    color: theme.colors.warning.dark,
+    fontSize: theme.typography.fontSize['3xl'],
     fontWeight: theme.typography.fontWeight.bold,
+    marginBottom: theme.spacing[1],
   },
-  alertValue: {
-    color: theme.colors.danger.base,
+  summaryCardValueSuccess: {
+    color: theme.colors.success.dark,
+    fontSize: theme.typography.fontSize['3xl'],
+    fontWeight: theme.typography.fontWeight.bold,
+    marginBottom: theme.spacing[1],
   },
   alertsSection: {
     backgroundColor: theme.colors.danger.light,

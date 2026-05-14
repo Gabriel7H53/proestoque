@@ -3,31 +3,37 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  SafeAreaView, 
   KeyboardAvoidingView, 
   Platform, 
   ScrollView, 
   TouchableOpacity 
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
 import { theme } from '../../src/constants/theme';
+import { useAuth } from '../../src/contexts/AuthContext';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    // Simulando login
-    setLoading(true);
-    setTimeout(() => {
+  const handleLogin = async () => {
+    try {
+      setLoading(true);
+      await login(email, password);
+      // Redirecionamento é feito automaticamente pelo NavigationGuard
+    } catch (error) {
+      console.error(error);
+      // Aqui você poderia exibir um Alert com o erro
+    } finally {
       setLoading(false);
-      router.replace('/(tabs)');
-    }, 1500);
+    }
   };
 
   return (
