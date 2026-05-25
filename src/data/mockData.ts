@@ -16,6 +16,9 @@ export interface Produto {
   preco: number;
   categoriaId: string;
   statusEstoque: StatusEstoque;
+  quantidadeMinima: number;
+  observacao?: string;
+  ultimaMovimentacao: string;
 }
 
 export interface Movimentacao {
@@ -35,15 +38,15 @@ export const CATEGORIAS_MOCK: Categoria[] = [
 ];
 
 export const PRODUTOS_MOCK: Produto[] = [
-  { id: 'p1', nome: 'Notebook Dell XPS 13', quantidade: 15, unidade: 'un', preco: 7500.00, categoriaId: '1', statusEstoque: 'normal' },
-  { id: 'p2', nome: 'Mouse Sem Fio Logitech', quantidade: 4, unidade: 'un', preco: 150.00, categoriaId: '1', statusEstoque: 'baixo' },
-  { id: 'p3', nome: 'Arroz Branco 5kg', quantidade: 50, unidade: 'pct', preco: 25.90, categoriaId: '2', statusEstoque: 'normal' },
-  { id: 'p4', nome: 'Feijão Carioca 1kg', quantidade: 0, unidade: 'pct', preco: 8.50, categoriaId: '2', statusEstoque: 'sem_estoque' },
-  { id: 'p5', nome: 'Detergente Líquido', quantidade: 120, unidade: 'un', preco: 2.20, categoriaId: '3', statusEstoque: 'normal' },
-  { id: 'p6', nome: 'Desinfetante Pinho', quantidade: 2, unidade: 'un', preco: 7.80, categoriaId: '3', statusEstoque: 'baixo' },
-  { id: 'p7', nome: 'Caderno Espiral 10 Matérias', quantidade: 30, unidade: 'un', preco: 18.00, categoriaId: '4', statusEstoque: 'normal' },
-  { id: 'p8', nome: 'Martelo Unha 25mm', quantidade: 8, unidade: 'un', preco: 45.00, categoriaId: '5', statusEstoque: 'normal' },
-  { id: 'p9', nome: 'Chave de Fenda Kit', quantidade: 1, unidade: 'kit', preco: 35.00, categoriaId: '5', statusEstoque: 'baixo' },
+  { id: 'p1', nome: 'Notebook Dell XPS 13', quantidade: 15, quantidadeMinima: 5, unidade: 'un', preco: 7500.00, categoriaId: '1', statusEstoque: 'normal', observacao: '', ultimaMovimentacao: new Date().toISOString() },
+  { id: 'p2', nome: 'Mouse Sem Fio Logitech', quantidade: 4, quantidadeMinima: 5, unidade: 'un', preco: 150.00, categoriaId: '1', statusEstoque: 'baixo', observacao: '', ultimaMovimentacao: new Date().toISOString() },
+  { id: 'p3', nome: 'Arroz Branco 5kg', quantidade: 50, quantidadeMinima: 10, unidade: 'pct', preco: 25.90, categoriaId: '2', statusEstoque: 'normal', observacao: '', ultimaMovimentacao: new Date().toISOString() },
+  { id: 'p4', nome: 'Feijão Carioca 1kg', quantidade: 0, quantidadeMinima: 10, unidade: 'pct', preco: 8.50, categoriaId: '2', statusEstoque: 'sem_estoque', observacao: '', ultimaMovimentacao: new Date().toISOString() },
+  { id: 'p5', nome: 'Detergente Líquido', quantidade: 120, quantidadeMinima: 20, unidade: 'un', preco: 2.20, categoriaId: '3', statusEstoque: 'normal', observacao: '', ultimaMovimentacao: new Date().toISOString() },
+  { id: 'p6', nome: 'Desinfetante Pinho', quantidade: 2, quantidadeMinima: 5, unidade: 'un', preco: 7.80, categoriaId: '3', statusEstoque: 'baixo', observacao: '', ultimaMovimentacao: new Date().toISOString() },
+  { id: 'p7', nome: 'Caderno Espiral 10 Matérias', quantidade: 30, quantidadeMinima: 10, unidade: 'un', preco: 18.00, categoriaId: '4', statusEstoque: 'normal', observacao: '', ultimaMovimentacao: new Date().toISOString() },
+  { id: 'p8', nome: 'Martelo Unha 25mm', quantidade: 8, quantidadeMinima: 5, unidade: 'un', preco: 45.00, categoriaId: '5', statusEstoque: 'normal', observacao: '', ultimaMovimentacao: new Date().toISOString() },
+  { id: 'p9', nome: 'Chave de Fenda Kit', quantidade: 1, quantidadeMinima: 2, unidade: 'kit', preco: 35.00, categoriaId: '5', statusEstoque: 'baixo', observacao: '', ultimaMovimentacao: new Date().toISOString() },
 ];
 
 export const MOVIMENTACOES_MOCK: Movimentacao[] = [

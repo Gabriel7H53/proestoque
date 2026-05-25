@@ -11,15 +11,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../src/constants/theme';
 import { 
-  PRODUTOS_MOCK, 
   CATEGORIAS_MOCK, 
-  getProdutosComEstoqueBaixo, 
-  getValorTotalEstoque, 
   formatarPreco,
   Produto
 } from '../../src/data/mockData';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { useProducts } from '../../src/contexts/ProductsContext';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -40,11 +38,17 @@ export default function HomeScreen() {
     setTimeout(() => setRefreshing(false), 1500);
   }, []);
 
+  const { produtos } = useProducts();
+
   // Calculate summaries
-  const totalProdutos = PRODUTOS_MOCK.length;
-  const produtosBaixoEstoque = getProdutosComEstoqueBaixo();
+  const totalProdutos = produtos.length;
+  const produtosBaixoEstoque = useMemo(() => {
+    return produtos.filter(p => p.statusEstoque === 'baixo' || p.statusEstoque === 'sem_estoque');
+  }, [produtos]);
   const totalCategorias = CATEGORIAS_MOCK.length;
-  const valorTotal = getValorTotalEstoque();
+  const valorTotal = useMemo(() => {
+    return produtos.reduce((total, p) => total + (p.quantidade * p.preco), 0);
+  }, [produtos]);
 
   // Get category icon
   const getCategoriaIcon = (categoriaId: string) => {
@@ -157,7 +161,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <FlatList
-        data={PRODUTOS_MOCK}
+        data={produtos}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         ListHeaderComponent={renderHeader}

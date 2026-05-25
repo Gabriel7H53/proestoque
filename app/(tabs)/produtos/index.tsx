@@ -10,20 +10,20 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../../src/constants/theme';
-import { 
-  PRODUTOS_MOCK, 
-  CATEGORIAS_MOCK, 
-  Produto
-} from '../../src/data/mockData';
+import { useRouter } from 'expo-router';
+import { theme } from '../../../src/constants/theme';
+import { CATEGORIAS_MOCK, Produto } from '../../../src/data/mockData';
+import { useProducts } from '../../../src/contexts/ProductsContext';
 
-export default function ProdutosScreen() {
+export default function ProdutosListScreen() {
+  const router = useRouter();
+  const { produtos } = useProducts();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoria, setSelectedCategoria] = useState<string | null>(null);
 
   // Filter products using useMemo
   const filteredProducts = useMemo(() => {
-    return PRODUTOS_MOCK.filter(produto => {
+    return produtos.filter(produto => {
       // Filter by category
       if (selectedCategoria && produto.categoriaId !== selectedCategoria) {
         return false;
@@ -35,7 +35,7 @@ export default function ProdutosScreen() {
       }
       return true;
     });
-  }, [searchQuery, selectedCategoria]);
+  }, [produtos, searchQuery, selectedCategoria]);
 
   // Toggle category filter
   const handleToggleCategoria = useCallback((id: string) => {
@@ -77,7 +77,11 @@ export default function ProdutosScreen() {
   }, []);
 
   const renderItem = useCallback(({ item }: { item: Produto }) => (
-    <View style={styles.productCard}>
+    <TouchableOpacity 
+      style={styles.productCard}
+      activeOpacity={0.7}
+      onPress={() => router.push(`/produtos/${item.id}`)}
+    >
       <View style={styles.productIconContainer}>
         <Ionicons name={getCategoriaIcon(item.categoriaId)} size={24} color={theme.colors.primary[500]} />
       </View>
@@ -86,8 +90,8 @@ export default function ProdutosScreen() {
         <Text style={styles.productQty}>{item.quantidade} {item.unidade}</Text>
       </View>
       <StatusBadge status={item.statusEstoque} />
-    </View>
-  ), [getCategoriaIcon, StatusBadge]);
+    </TouchableOpacity>
+  ), [getCategoriaIcon, StatusBadge, router]);
 
   const renderEmptyComponent = useCallback(() => (
     <View style={styles.emptyContainer}>
@@ -156,6 +160,14 @@ export default function ProdutosScreen() {
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />
+
+        <TouchableOpacity 
+          style={styles.fab}
+          activeOpacity={0.8}
+          onPress={() => router.push('/produtos/novo')}
+        >
+          <Ionicons name="add" size={28} color={theme.colors.white} />
+        </TouchableOpacity>
 
       </View>
     </SafeAreaView>
@@ -238,7 +250,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: theme.spacing[4],
-    paddingBottom: theme.spacing[8],
+    paddingBottom: 80, // Extra padding for FAB
     flexGrow: 1,
   },
   emptyContainer: {
@@ -259,7 +271,6 @@ const styles = StyleSheet.create({
     color: theme.colors.neutral[500],
     textAlign: 'center',
   },
-  // Reusing product card styles from Dashboard
   productCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -301,5 +312,21 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: theme.typography.fontWeight.bold,
     textTransform: 'uppercase',
+  },
+  fab: {
+    position: 'absolute',
+    bottom: theme.spacing[6],
+    right: theme.spacing[6],
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: theme.colors.primary[500],
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
 });
