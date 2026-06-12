@@ -7,7 +7,7 @@ import { Input } from '../Input';
 import { Button } from '../Button';
 import { produtoSchema, ProdutoFormData } from '../../schemas/produtoSchema';
 import { useProducts } from '../../contexts/ProductsContext';
-import { CATEGORIAS_MOCK } from '../../data/mockData';
+import { useCategorias } from '../../hooks/useCategorias';
 import { theme } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -21,6 +21,7 @@ const UNIDADES = ['un', 'kg', 'cx', 'L', 'm'] as const;
 export const ProdutoForm: React.FC<ProdutoFormProps> = ({ initialData, modo }) => {
   const router = useRouter();
   const { adicionarProduto, editarProduto, deletarProduto } = useProducts();
+  const { categorias } = useCategorias();
 
   const { control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ProdutoFormData>({
     resolver: zodResolver(produtoSchema),
@@ -37,7 +38,15 @@ export const ProdutoForm: React.FC<ProdutoFormProps> = ({ initialData, modo }) =
 
   useEffect(() => {
     if (modo === 'edicao' && initialData) {
-      reset(initialData);
+      reset({
+        nome: initialData.nome,
+        categoriaId: initialData.categoriaId,
+        quantidade: initialData.quantidade,
+        quantidadeMinima: initialData.quantidadeMinima,
+        preco: initialData.preco,
+        unidade: initialData.unidade,
+        observacao: initialData.observacao || '',
+      });
     }
   }, [modo, initialData, reset]);
 
@@ -51,8 +60,11 @@ export const ProdutoForm: React.FC<ProdutoFormProps> = ({ initialData, modo }) =
         Alert.alert('Sucesso', 'Produto atualizado com sucesso!');
       }
       router.back();
-    } catch (error) {
-      Alert.alert('Erro', 'Ocorreu um erro ao salvar o produto.');
+    } catch (error: any) {
+      Alert.alert(
+        'Não foi possível salvar',
+        error.message ?? 'Verifique sua conexão e tente novamente.'
+      );
     }
   };
 
@@ -71,8 +83,8 @@ export const ProdutoForm: React.FC<ProdutoFormProps> = ({ initialData, modo }) =
               await deletarProduto(initialData.id!);
               Alert.alert('Sucesso', 'Produto excluído!');
               router.back();
-            } catch (error) {
-              Alert.alert('Erro', 'Ocorreu um erro ao excluir.');
+            } catch (error: any) {
+              Alert.alert('Erro ao excluir', error.message || 'Ocorreu um erro ao excluir.');
             }
           }
         }
@@ -115,22 +127,25 @@ export const ProdutoForm: React.FC<ProdutoFormProps> = ({ initialData, modo }) =
         render={({ field: { onChange, value } }) => (
           <View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesContainer}>
-              {CATEGORIAS_MOCK.map((cat) => (
-                <TouchableOpacity
-                  key={cat.id}
-                  style={[styles.categoryChip, value === cat.id && styles.categoryChipSelected]}
-                  onPress={() => onChange(cat.id)}
-                >
-                  <Ionicons 
-                    name={cat.icon} 
-                    size={16} 
-                    color={value === cat.id ? theme.colors.white : theme.colors.neutral[600]} 
-                  />
-                  <Text style={[styles.categoryText, value === cat.id && styles.categoryTextSelected]}>
-                    {cat.nome}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {categorias.map((cat) => {
+                const iconName = (cat.icone || 'cube-outline') as keyof typeof Ionicons.glyphMap;
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[styles.categoryChip, value === cat.id && styles.categoryChipSelected]}
+                    onPress={() => onChange(cat.id)}
+                  >
+                    <Ionicons 
+                      name={iconName} 
+                      size={16} 
+                      color={value === cat.id ? theme.colors.white : theme.colors.neutral[600]} 
+                    />
+                    <Text style={[styles.categoryText, value === cat.id && styles.categoryTextSelected]}>
+                      {cat.nome}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
             {errors.categoriaId && <Text style={styles.errorText}>{errors.categoriaId.message}</Text>}
           </View>
@@ -224,7 +239,7 @@ export const ProdutoForm: React.FC<ProdutoFormProps> = ({ initialData, modo }) =
             style={{ height: 80, textAlignVertical: 'top' }}
             onBlur={onBlur}
             onChangeText={onChange}
-            value={value}
+            value={value || ''}
             error={errors.observacao?.message}
           />
         )}
@@ -233,7 +248,7 @@ export const ProdutoForm: React.FC<ProdutoFormProps> = ({ initialData, modo }) =
       <View style={styles.actions}>
         <Button 
           title={modo === 'criacao' ? 'Cadastrar Produto' : 'Salvar Alterações'} 
-          onPress={handleSubmit(onSubmit)} 
+          onPress={handleSubmit(onSubmit as any) as any} 
           loading={isSubmitting}
           fullWidth
         />
@@ -320,7 +335,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.neutral[200],
   },
   unidadeChipSelected: {
-    backgroundColor: theme.colors.primary[50],
+    backgroundColor: theme.colors.primary[100],
     borderColor: theme.colors.primary[500],
   },
   unidadeText: {
@@ -333,7 +348,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.danger.base,
+    color: theme.colors.danger.base || '#ef4444',
     marginTop: -theme.spacing[2],
     marginBottom: theme.spacing[4],
   },

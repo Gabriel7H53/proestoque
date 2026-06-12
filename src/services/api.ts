@@ -1,15 +1,13 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
-// Em desenvolvimento, troque SEU_IP_LOCAL pelo IP da sua máquina.
-// Android não acessa o localhost do computador diretamente.
-// Exemplo: http://192.168.1.100:3333/api
-const BASE_URL = __DEV__
-  ? "http://192.168.0.13:3333/api" // TODO: Troque pelo IP da sua máquina
-  : "https://proestoque-api.onrender.com/api";
+const API_URL =
+  (Constants.expoConfig?.extra?.apiUrl as string) ??
+  "http://localhost:3333/api";
 
 export const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL: API_URL,
   timeout: 10000,
   headers: { "Content-Type": "application/json" },
 });
@@ -24,11 +22,20 @@ api.interceptors.request.use(async (config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Token inválido ou expirado.
-      // Tratamento global completo será feito em aula futura, se necessário.
+  async (error) => {
+    const status = error.response?.status;
+
+    if (status === 401) {
+      await AsyncStorage.multiRemove(["@proestoque:token", "@proestoque:user"]);
     }
-    return Promise.reject(error);
+
+    const mensagem =
+      error.response?.data?.erro ??
+      error.response?.data?.message ??
+      (error.code === "ECONNABORTED"
+        ? "Tempo de conexão esgotado"
+        : "Erro de conexão");
+
+    return Promise.reject(new Error(mensagem));
   }
 );

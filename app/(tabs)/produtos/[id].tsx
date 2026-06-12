@@ -41,7 +41,7 @@ export default function EditarProdutoScreen() {
           quantidadeMinima: produto.quantidadeMinima,
           preco: produto.preco,
           unidade: produto.unidade as any,
-          observacao: produto.observacao,
+          observacao: produto.observacao || '',
         }} 
       />
     </View>

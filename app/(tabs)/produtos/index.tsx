@@ -6,20 +6,32 @@ import {
   FlatList, 
   TextInput,
   TouchableOpacity,
-  ScrollView
+  ScrollView,
+  RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { theme } from '../../../src/constants/theme';
-import { CATEGORIAS_MOCK, Produto } from '../../../src/data/mockData';
-import { useProducts } from '../../../src/contexts/ProductsContext';
+import { useProducts, Produto } from '../../../src/contexts/ProductsContext';
+import { useCategorias } from '../../../src/hooks/useCategorias';
+import { LoadingView } from '../../../src/components/LoadingView';
+import { ErrorView } from '../../../src/components/ErrorView';
 
 export default function ProdutosListScreen() {
   const router = useRouter();
-  const { produtos } = useProducts();
+  const { produtos, isLoading, error, carregarProdutos } = useProducts();
+  const { categorias } = useCategorias();
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoria, setSelectedCategoria] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await carregarProdutos();
+    setRefreshing(false);
+  }, [carregarProdutos]);
 
   // Filter products using useMemo
   const filteredProducts = useMemo(() => {
@@ -44,12 +56,13 @@ export default function ProdutosListScreen() {
 
   // Get category icon
   const getCategoriaIcon = useCallback((categoriaId: string) => {
-    const cat = CATEGORIAS_MOCK.find(c => c.id === categoriaId);
-    return cat ? cat.icon : 'cube-outline';
-  }, []);
+    const cat = categorias.find(c => c.id === categoriaId);
+    const iconName = cat?.icone || cat?.icone || 'cube-outline';
+    return iconName as keyof typeof Ionicons.glyphMap;
+  }, [categorias]);
 
   // Status Badge component
-  const StatusBadge = useCallback(({ status }: { status: Produto['statusEstoque'] }) => {
+  const StatusBadge = useCallback(({ status }: { status: 'normal' | 'baixo' | 'sem_estoque' }) => {
     let bgColor, textColor, label;
     switch (status) {
       case 'normal':
@@ -67,6 +80,10 @@ export default function ProdutosListScreen() {
         textColor = theme.colors.danger.dark;
         label = 'Sem estoque';
         break;
+      default:
+        bgColor = theme.colors.neutral[100];
+        textColor = theme.colors.neutral[600];
+        label = 'Indefinido';
     }
 
     return (
@@ -76,22 +93,25 @@ export default function ProdutosListScreen() {
     );
   }, []);
 
-  const renderItem = useCallback(({ item }: { item: Produto }) => (
-    <TouchableOpacity 
-      style={styles.productCard}
-      activeOpacity={0.7}
-      onPress={() => router.push(`/produtos/${item.id}`)}
-    >
-      <View style={styles.productIconContainer}>
-        <Ionicons name={getCategoriaIcon(item.categoriaId)} size={24} color={theme.colors.primary[500]} />
-      </View>
-      <View style={styles.productInfo}>
-        <Text style={styles.productName} numberOfLines={1}>{item.nome}</Text>
-        <Text style={styles.productQty}>{item.quantidade} {item.unidade}</Text>
-      </View>
-      <StatusBadge status={item.statusEstoque} />
-    </TouchableOpacity>
-  ), [getCategoriaIcon, StatusBadge, router]);
+  const renderItem = useCallback(({ item }: { item: Produto }) => {
+    const status = item.quantidade <= 0 ? 'sem_estoque' : (item.quantidade < item.quantidadeMinima ? 'baixo' : 'normal');
+    return (
+      <TouchableOpacity 
+        style={styles.productCard}
+        activeOpacity={0.7}
+        onPress={() => router.push(`/produtos/${item.id}`)}
+      >
+        <View style={styles.productIconContainer}>
+          <Ionicons name={getCategoriaIcon(item.categoriaId)} size={24} color={theme.colors.primary[500]} />
+        </View>
+        <View style={styles.productInfo}>
+          <Text style={styles.productName} numberOfLines={1}>{item.nome}</Text>
+          <Text style={styles.productQty}>{item.quantidade} {item.unidade}</Text>
+        </View>
+        <StatusBadge status={status} />
+      </TouchableOpacity>
+    );
+  }, [getCategoriaIcon, StatusBadge, router]);
 
   const renderEmptyComponent = useCallback(() => (
     <View style={styles.emptyContainer}>
@@ -100,6 +120,14 @@ export default function ProdutosListScreen() {
       <Text style={styles.emptySubtext}>Tente buscar por outro termo ou remova os filtros.</Text>
     </View>
   ), []);
+
+  if (isLoading && produtos.length === 0) {
+    return <LoadingView mensagem="Buscando produtos..." />;
+  }
+
+  if (error && produtos.length === 0) {
+    return <ErrorView mensagem={error} onRetry={carregarProdutos} />;
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -127,30 +155,33 @@ export default function ProdutosListScreen() {
           )}
         </View>
 
-        <View style={styles.filtersContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersScrollContent}>
-            {CATEGORIAS_MOCK.map(categoria => {
-              const isSelected = selectedCategoria === categoria.id;
-              return (
-                <TouchableOpacity
-                  key={categoria.id}
-                  style={[styles.chip, isSelected && styles.chipSelected]}
-                  onPress={() => handleToggleCategoria(categoria.id)}
-                >
-                  <Ionicons 
-                    name={categoria.icon} 
-                    size={16} 
-                    color={isSelected ? theme.colors.white : theme.colors.neutral[600]} 
-                    style={styles.chipIcon}
-                  />
-                  <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-                    {categoria.nome}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
+        {categorias.length > 0 && (
+          <View style={styles.filtersContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersScrollContent}>
+              {categorias.map(categoria => {
+                const isSelected = selectedCategoria === categoria.id;
+                const iconName = (categoria.icone || 'cube-outline') as keyof typeof Ionicons.glyphMap;
+                return (
+                  <TouchableOpacity
+                    key={categoria.id}
+                    style={[styles.chip, isSelected && styles.chipSelected]}
+                    onPress={() => handleToggleCategoria(categoria.id)}
+                  >
+                    <Ionicons 
+                      name={iconName} 
+                      size={16} 
+                      color={isSelected ? theme.colors.white : theme.colors.neutral[600]} 
+                      style={styles.chipIcon}
+                    />
+                    <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
+                      {categoria.nome}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
         <FlatList
           data={filteredProducts}
@@ -159,6 +190,14 @@ export default function ProdutosListScreen() {
           ListEmptyComponent={renderEmptyComponent}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[theme.colors.primary[500]]}
+              tintColor={theme.colors.primary[500]}
+            />
+          }
         />
 
         <TouchableOpacity 

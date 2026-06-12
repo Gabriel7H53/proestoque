@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { loginApi, registrarApi, buscarPerfilApi } from '../services/authService';
+import { api } from '../services/api';
 
 export type User = {
   id: string;
@@ -20,6 +20,11 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const STORAGE_KEYS = {
+  TOKEN: "@proestoque:token",
+  USER: "@proestoque:user",
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -29,8 +34,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     async function loadStorageData() {
       try {
         const [[, storedToken], [, storedUser]] = await AsyncStorage.multiGet([
-          '@proestoque:token',
-          '@proestoque:user',
+          STORAGE_KEYS.TOKEN,
+          STORAGE_KEYS.USER,
         ]);
 
         if (storedToken && storedUser) {
@@ -39,16 +44,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
           // Validação em segundo plano do token atual
           try {
-            const userApi = await buscarPerfilApi();
+            const response = await api.get('/auth/me');
+            const userApi = response.data;
             setUser(userApi);
-            await AsyncStorage.setItem('@proestoque:user', JSON.stringify(userApi));
+            await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userApi));
           } catch (apiError: any) {
-            console.warn('Falha ao validar token na API. Mantendo sessão offline.', apiError);
-            if (apiError.response?.status === 401) {
-              await AsyncStorage.multiRemove(['@proestoque:token', '@proestoque:user']);
-              setToken(null);
-              setUser(null);
-            }
+            console.warn('Falha ao validar token na API. Mantendo sessão offline.', apiError.message);
           }
         }
       } catch (error) {
@@ -62,61 +63,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (email: string, senha?: string) => {
-    if (!email) {
-      throw new Error('Email obrigatório');
-    }
-    if (!senha) {
-      throw new Error('Senha obrigatória');
-    }
+    if (!email) throw new Error('Email obrigatório');
+    if (!senha) throw new Error('Senha obrigatória');
 
     setIsLoading(true);
-
     try {
-      const response = await loginApi(email, senha);
-      const { usuario, token: jwtToken } = response;
+      const response = await api.post('/auth/login', { email, senha });
+      const { usuario, token: jwtToken } = response.data;
 
       await AsyncStorage.multiSet([
-        ['@proestoque:token', jwtToken],
-        ['@proestoque:user', JSON.stringify(usuario)],
+        [STORAGE_KEYS.TOKEN, jwtToken],
+        [STORAGE_KEYS.USER, JSON.stringify(usuario)],
       ]);
       setToken(jwtToken);
       setUser(usuario);
-    } catch (error: any) {
-      console.error('Erro ao fazer login', error);
-      const mensagem = error.response?.data?.erro || error.response?.data?.message || 'Erro ao fazer login';
-      throw new Error(mensagem);
     } finally {
       setIsLoading(false);
     }
   };
 
   const registrar = async (nome: string, email: string, senha?: string) => {
-    if (!nome) {
-      throw new Error('Nome obrigatório');
-    }
-    if (!email) {
-      throw new Error('Email obrigatório');
-    }
-    if (!senha) {
-      throw new Error('Senha obrigatória');
-    }
+    if (!nome) throw new Error('Nome obrigatório');
+    if (!email) throw new Error('Email obrigatório');
+    if (!senha) throw new Error('Senha obrigatória');
 
     setIsLoading(true);
-
     try {
-      const response = await registrarApi(nome, email, senha);
-      const { usuario, token: jwtToken } = response;
+      const response = await api.post('/auth/registro', { nome, email, senha });
+      const { usuario, token: jwtToken } = response.data;
 
       await AsyncStorage.multiSet([
-        ['@proestoque:token', jwtToken],
-        ['@proestoque:user', JSON.stringify(usuario)],
+        [STORAGE_KEYS.TOKEN, jwtToken],
+        [STORAGE_KEYS.USER, JSON.stringify(usuario)],
       ]);
       setToken(jwtToken);
       setUser(usuario);
-    } catch (error: any) {
-      console.error('Erro ao criar conta', error);
-      const mensagem = error.response?.data?.erro || error.response?.data?.message || 'Erro ao criar conta';
-      throw new Error(mensagem);
     } finally {
       setIsLoading(false);
     }
@@ -124,7 +105,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     try {
-      await AsyncStorage.multiRemove(['@proestoque:token', '@proestoque:user']);
+      await AsyncStorage.multiRemove([STORAGE_KEYS.TOKEN, STORAGE_KEYS.USER]);
       setToken(null);
       setUser(null);
     } catch (error) {
@@ -151,10 +132,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-
   if (!context) {
     throw new Error('useAuth deve ser usado dentro de um AuthProvider');
   }
-
   return context;
 }

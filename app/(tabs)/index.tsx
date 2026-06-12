@@ -10,18 +10,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../src/constants/theme';
-import { 
-  CATEGORIAS_MOCK, 
-  formatarPreco,
-  Produto
-} from '../../src/data/mockData';
+import { formatarPreco } from '../../src/utils/formatters';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
-import { useProducts } from '../../src/contexts/ProductsContext';
+import { useProducts, Produto } from '../../src/contexts/ProductsContext';
+import { useCategorias } from '../../src/hooks/useCategorias';
+import { LoadingView } from '../../src/components/LoadingView';
+import { ErrorView } from '../../src/components/ErrorView';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { produtos, isLoading, error, carregarProdutos } = useProducts();
+  const { categorias, carregarCategorias } = useCategorias();
   const [refreshing, setRefreshing] = useState(false);
 
   // Saudação baseada no horário
@@ -32,32 +33,34 @@ export default function HomeScreen() {
     return 'Boa noite';
   };
 
-  // Simulating refresh
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1500);
-  }, []);
-
-  const { produtos } = useProducts();
+    await Promise.all([carregarProdutos(), carregarCategorias()]);
+    setRefreshing(false);
+  }, [carregarProdutos, carregarCategorias]);
 
   // Calculate summaries
   const totalProdutos = produtos.length;
+  
   const produtosBaixoEstoque = useMemo(() => {
-    return produtos.filter(p => p.statusEstoque === 'baixo' || p.statusEstoque === 'sem_estoque');
+    return produtos.filter(p => p.quantidade < p.quantidadeMinima);
   }, [produtos]);
-  const totalCategorias = CATEGORIAS_MOCK.length;
+
+  const totalCategorias = categorias.length;
+
   const valorTotal = useMemo(() => {
     return produtos.reduce((total, p) => total + (p.quantidade * p.preco), 0);
   }, [produtos]);
 
   // Get category icon
-  const getCategoriaIcon = (categoriaId: string) => {
-    const cat = CATEGORIAS_MOCK.find(c => c.id === categoriaId);
-    return cat ? cat.icon : 'cube-outline';
-  };
+  const getCategoriaIcon = useCallback((categoriaId: string) => {
+    const cat = categorias.find(c => c.id === categoriaId);
+    const iconName = cat?.icone || 'cube-outline';
+    return iconName as keyof typeof Ionicons.glyphMap;
+  }, [categorias]);
 
   // Status Badge components
-  const StatusBadge = ({ status }: { status: Produto['statusEstoque'] }) => {
+  const StatusBadge = useCallback(({ status }: { status: 'normal' | 'baixo' | 'sem_estoque' }) => {
     let bgColor, textColor, label;
     switch (status) {
       case 'normal':
@@ -75,6 +78,10 @@ export default function HomeScreen() {
         textColor = theme.colors.danger.dark;
         label = 'Sem estoque';
         break;
+      default:
+        bgColor = theme.colors.neutral[100];
+        textColor = theme.colors.neutral[600];
+        label = 'Indefinido';
     }
 
     return (
@@ -82,89 +89,117 @@ export default function HomeScreen() {
         <Text style={[styles.badgeText, { color: textColor }]}>{label}</Text>
       </View>
     );
+  }, []);
+
+  const renderHeader = () => {
+    const firstName = user?.nome ? user.nome.split(" ")[0] : 'Usuário';
+
+    return (
+      <View style={styles.headerContainer}>
+        <View style={styles.greetingHeader}>
+          <View style={styles.headerRow}>
+            <View>
+              <Text style={styles.greeting}>{getGreeting()}, {firstName} 👋</Text>
+              <Text style={styles.subtitle}>Visão geral do seu estoque</Text>
+            </View>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{firstName.charAt(0).toUpperCase()}</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.summaryGrid}>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryCardValue}>{totalProdutos}</Text>
+            <Text style={styles.summaryCardLabel}>Produtos</Text>
+          </View>
+          <View style={[styles.summaryCard, styles.summaryCardWarning]}>
+            <Text style={styles.summaryCardValueWarning}>{produtosBaixoEstoque.length}</Text>
+            <Text style={styles.summaryCardLabelWarning}>Alertas</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryCardValue}>{totalCategorias}</Text>
+            <Text style={styles.summaryCardLabel}>Categorias</Text>
+          </View>
+          <View style={[styles.summaryCard, styles.summaryCardSuccess]}>
+            <Text style={styles.summaryCardValueSuccess}>{formatarPreco(valorTotal)}</Text>
+            <Text style={styles.summaryCardLabelSuccess}>Valor</Text>
+          </View>
+        </View>
+
+        {produtosBaixoEstoque.length > 0 && (
+          <View style={styles.alertsSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>⚠️ Alertas de Estoque</Text>
+              {produtosBaixoEstoque.length > 3 && (
+                <TouchableOpacity onPress={() => router.push('/(tabs)/produtos')}>
+                  <Text style={styles.seeAllText}>Ver todos</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            {produtosBaixoEstoque.slice(0, 3).map(produto => (
+              <View key={`alert-${produto.id}`} style={styles.alertItem}>
+                <View style={styles.alertItemLeft}>
+                  <Ionicons name="warning-outline" size={20} color={theme.colors.danger.base} />
+                  <Text style={styles.alertItemName} numberOfLines={1}>{produto.nome}</Text>
+                </View>
+                <Text style={styles.alertItemQtd}>
+                  {produto.quantidade} {produto.unidade}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        <Text style={[styles.sectionTitle, styles.recentProductsTitle]}>Produtos recentes</Text>
+      </View>
+    );
   };
 
-  const renderHeader = () => (
-    <View style={styles.headerContainer}>
-      <View style={styles.greetingHeader}>
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.greeting}>{getGreeting()}, {user?.nome || 'Usuário'} 👋</Text>
-            <Text style={styles.subtitle}>Visão geral do seu estoque</Text>
-          </View>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{user?.nome?.charAt(0).toUpperCase() || 'U'}</Text>
-          </View>
+  const renderItem = useCallback(({ item }: { item: Produto }) => {
+    const status = item.quantidade <= 0 ? 'sem_estoque' : (item.quantidade < item.quantidadeMinima ? 'baixo' : 'normal');
+    return (
+      <TouchableOpacity 
+        style={styles.productCard}
+        activeOpacity={0.7}
+        onPress={() => router.push(`/produtos/${item.id}`)}
+      >
+        <View style={styles.productIconContainer}>
+          <Ionicons name={getCategoriaIcon(item.categoriaId)} size={24} color={theme.colors.primary[500]} />
         </View>
-      </View>
+        <View style={styles.productInfo}>
+          <Text style={styles.productName} numberOfLines={1}>{item.nome}</Text>
+          <Text style={styles.productQty}>{item.quantidade} {item.unidade}</Text>
+        </View>
+        <StatusBadge status={status} />
+      </TouchableOpacity>
+    );
+  }, [getCategoriaIcon, StatusBadge, router]);
 
-      <View style={styles.summaryGrid}>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryCardValue}>{totalProdutos}</Text>
-          <Text style={styles.summaryCardLabel}>Produtos</Text>
-        </View>
-        <View style={[styles.summaryCard, styles.summaryCardWarning]}>
-          <Text style={styles.summaryCardValueWarning}>{produtosBaixoEstoque.length}</Text>
-          <Text style={styles.summaryCardLabelWarning}>Alertas</Text>
-        </View>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryCardValue}>{totalCategorias}</Text>
-          <Text style={styles.summaryCardLabel}>Categorias</Text>
-        </View>
-        <View style={[styles.summaryCard, styles.summaryCardSuccess]}>
-          <Text style={styles.summaryCardValueSuccess}>{formatarPreco(valorTotal)}</Text>
-          <Text style={styles.summaryCardLabelSuccess}>Valor</Text>
-        </View>
-      </View>
-
-      {produtosBaixoEstoque.length > 0 && (
-        <View style={styles.alertsSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>⚠️ Alertas de Estoque</Text>
-            {produtosBaixoEstoque.length > 3 && (
-              <TouchableOpacity onPress={() => router.push('/(tabs)/produtos')}>
-                <Text style={styles.seeAllText}>Ver todos</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          {produtosBaixoEstoque.slice(0, 3).map(produto => (
-            <View key={`alert-${produto.id}`} style={styles.alertItem}>
-              <View style={styles.alertItemLeft}>
-                <Ionicons name="warning-outline" size={20} color={theme.colors.danger.base} />
-                <Text style={styles.alertItemName} numberOfLines={1}>{produto.nome}</Text>
-              </View>
-              <Text style={styles.alertItemQtd}>
-                {produto.quantidade} {produto.unidade}
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      <Text style={[styles.sectionTitle, styles.recentProductsTitle]}>Produtos recentes</Text>
-    </View>
-  );
-
-  const renderItem = useCallback(({ item }: { item: Produto }) => (
-    <View style={styles.productCard}>
-      <View style={styles.productIconContainer}>
-        <Ionicons name={getCategoriaIcon(item.categoriaId)} size={24} color={theme.colors.primary[500]} />
-      </View>
-      <View style={styles.productInfo}>
-        <Text style={styles.productName} numberOfLines={1}>{item.nome}</Text>
-        <Text style={styles.productQty}>{item.quantidade} {item.unidade}</Text>
-      </View>
-      <StatusBadge status={item.statusEstoque} />
+  const renderEmptyComponent = useCallback(() => (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="cube-outline" size={48} color={theme.colors.neutral[300]} />
+      <Text style={styles.emptyText}>Nenhum produto cadastrado</Text>
+      <Text style={styles.emptySubtext}>Toque no botão de adicionar na aba de produtos para começar.</Text>
     </View>
   ), []);
+
+  if (isLoading && produtos.length === 0) {
+    return <LoadingView mensagem="Carregando dashboard..." />;
+  }
+
+  if (error && produtos.length === 0) {
+    return <ErrorView mensagem={error} onRetry={onRefresh} />;
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <FlatList
-        data={produtos}
+        data={produtos.slice(0, 5)} // Mostra apenas os 5 produtos mais recentes no Dashboard
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         ListHeaderComponent={renderHeader}
+        ListEmptyComponent={renderEmptyComponent}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -369,5 +404,22 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: theme.typography.fontWeight.bold,
     textTransform: 'uppercase',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: theme.spacing[12],
+  },
+  emptyText: {
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.neutral[700],
+    marginTop: theme.spacing[2],
+  },
+  emptySubtext: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.neutral[500],
+    textAlign: 'center',
+    marginTop: theme.spacing[1],
   },
 });
