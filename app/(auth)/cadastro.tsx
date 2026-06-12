@@ -6,7 +6,8 @@ import {
   KeyboardAvoidingView, 
   Platform, 
   ScrollView, 
-  TouchableOpacity 
+  TouchableOpacity,
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -14,9 +15,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Button';
 import { theme } from '../../src/constants/theme';
+import { useAuth } from '../../src/contexts/AuthContext';
 
 export default function CadastroScreen() {
   const router = useRouter();
+  const { registrar } = useAuth();
   
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
@@ -55,14 +58,18 @@ export default function CadastroScreen() {
     return isValid;
   };
 
-  const handleCadastro = () => {
+  const handleCadastro = async () => {
     if (validate()) {
-      setLoading(true);
-      setTimeout(() => {
+      try {
+        setLoading(true);
+        await registrar(nome, email, senha);
+        // Sucesso no cadastro: redirecionamento automático pelo NavigationGuard
+      } catch (error: any) {
+        console.error(error);
+        Alert.alert('Erro ao Criar Conta', error.message || 'Ocorreu um erro no cadastro');
+      } finally {
         setLoading(false);
-        // Sucesso no cadastro
-        router.replace('/(tabs)');
-      }, 2000);
+      }
     }
   };
 

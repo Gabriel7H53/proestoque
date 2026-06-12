@@ -6,7 +6,8 @@ import {
   KeyboardAvoidingView, 
   Platform, 
   ScrollView, 
-  TouchableOpacity 
+  TouchableOpacity,
+  Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -28,9 +29,9 @@ export default function LoginScreen() {
       setLoading(true);
       await login(email, password);
       // Redirecionamento é feito automaticamente pelo NavigationGuard
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      // Aqui você poderia exibir um Alert com o erro
+      Alert.alert('Erro de Autenticação', error.message || 'Ocorreu um erro ao fazer login');
     } finally {
       setLoading(false);
     }

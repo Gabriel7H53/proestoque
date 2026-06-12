@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loginApi, registrarApi, buscarPerfilApi } from '../services/authService';
 
 export type User = {
   id: string;
@@ -13,6 +14,7 @@ type AuthContextType = {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, senha?: string) => Promise<void>;
+  registrar: (nome: string, email: string, senha?: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -34,6 +36,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (storedToken && storedUser) {
           setToken(storedToken);
           setUser(JSON.parse(storedUser));
+
+          // Validação em segundo plano do token atual
+          try {
+            const userApi = await buscarPerfilApi();
+            setUser(userApi);
+            await AsyncStorage.setItem('@proestoque:user', JSON.stringify(userApi));
+          } catch (apiError: any) {
+            console.warn('Falha ao validar token na API. Mantendo sessão offline.', apiError);
+            if (apiError.response?.status === 401) {
+              await AsyncStorage.multiRemove(['@proestoque:token', '@proestoque:user']);
+              setToken(null);
+              setUser(null);
+            }
+          }
         }
       } catch (error) {
         console.error('Falha ao carregar os dados de autenticação', error);
@@ -53,30 +69,56 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       throw new Error('Senha obrigatória');
     }
 
-    // Simular API request delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Fake token and user
-    const fakeToken = 'fake-jwt-token-12345';
-    // Use email part before @ as the name, capitalized
-    const nameFromEmail = email.split('@')[0];
-    const capitalizedName = nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
-
-    const fakeUser: User = {
-      id: '1',
-      nome: capitalizedName,
-      email: email,
-    };
+    setIsLoading(true);
 
     try {
+      const response = await loginApi(email, senha);
+      const { usuario, token: jwtToken } = response;
+
       await AsyncStorage.multiSet([
-        ['@proestoque:token', fakeToken],
-        ['@proestoque:user', JSON.stringify(fakeUser)],
+        ['@proestoque:token', jwtToken],
+        ['@proestoque:user', JSON.stringify(usuario)],
       ]);
-      setToken(fakeToken);
-      setUser(fakeUser);
-    } catch (error) {
-      console.error('Falha ao salvar o usuário', error);
+      setToken(jwtToken);
+      setUser(usuario);
+    } catch (error: any) {
+      console.error('Erro ao fazer login', error);
+      const mensagem = error.response?.data?.erro || error.response?.data?.message || 'Erro ao fazer login';
+      throw new Error(mensagem);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const registrar = async (nome: string, email: string, senha?: string) => {
+    if (!nome) {
+      throw new Error('Nome obrigatório');
+    }
+    if (!email) {
+      throw new Error('Email obrigatório');
+    }
+    if (!senha) {
+      throw new Error('Senha obrigatória');
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await registrarApi(nome, email, senha);
+      const { usuario, token: jwtToken } = response;
+
+      await AsyncStorage.multiSet([
+        ['@proestoque:token', jwtToken],
+        ['@proestoque:user', JSON.stringify(usuario)],
+      ]);
+      setToken(jwtToken);
+      setUser(usuario);
+    } catch (error: any) {
+      console.error('Erro ao criar conta', error);
+      const mensagem = error.response?.data?.erro || error.response?.data?.message || 'Erro ao criar conta';
+      throw new Error(mensagem);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -98,6 +140,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isLoading,
         isAuthenticated: !!token,
         login,
+        registrar,
         logout,
       }}
     >

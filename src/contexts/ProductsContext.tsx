@@ -2,6 +2,8 @@ import React, { createContext, useContext, useReducer, useEffect, useCallback, R
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Produto, PRODUTOS_MOCK, StatusEstoque } from '../data/mockData';
 import { ProdutoFormData } from '../schemas/produtoSchema';
+import * as produtoService from '../services/produtoService';
+import { useAuth } from './AuthContext';
 
 interface ProductsState {
   produtos: Produto[];
@@ -61,25 +63,44 @@ const calcularStatusEstoque = (quantidade: number, quantidadeMinima: number): St
 
 export const ProductsProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(productsReducer, initialState);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     async function loadProdutos() {
+      if (!isAuthenticated) {
+        dispatch({ type: 'LOAD', payload: [] });
+        return;
+      }
+
       try {
-        const stored = await AsyncStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          dispatch({ type: 'LOAD', payload: JSON.parse(stored) });
-        } else {
-          // Fallback to mock data se não houver produtos locais
-          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(PRODUTOS_MOCK));
+        const produtosApi = await produtoService.listarProdutos();
+        const produtosTratados = produtosApi.map(p => ({
+          ...p,
+          preco: Number(p.preco),
+          statusEstoque: p.statusEstoque || calcularStatusEstoque(Number(p.quantidade), Number(p.quantidadeMinima))
+        }));
+        
+        dispatch({ type: 'LOAD', payload: produtosTratados });
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(produtosTratados));
+      } catch (apiError) {
+        console.warn('API falhou ao listar produtos. Usando fallback local.', apiError);
+        try {
+          const stored = await AsyncStorage.getItem(STORAGE_KEY);
+          if (stored) {
+            dispatch({ type: 'LOAD', payload: JSON.parse(stored) });
+          } else {
+            // Fallback to mock data se não houver produtos locais
+            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(PRODUTOS_MOCK));
+            dispatch({ type: 'LOAD', payload: PRODUTOS_MOCK });
+          }
+        } catch (error) {
+          console.error('Failed to load products', error);
           dispatch({ type: 'LOAD', payload: PRODUTOS_MOCK });
         }
-      } catch (error) {
-        console.error('Failed to load products', error);
-        dispatch({ type: 'LOAD', payload: PRODUTOS_MOCK });
       }
     }
     loadProdutos();
-  }, []);
+  }, [isAuthenticated]);
 
   const persistirProdutos = async (novosProdutos: Produto[]) => {
     try {
@@ -91,18 +112,30 @@ export const ProductsProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const adicionarProduto = useCallback(async (data: ProdutoFormData) => {
-    const novoProduto: Produto = {
-      id: `prod_${Date.now()}`,
-      nome: data.nome,
-      categoriaId: data.categoriaId,
-      quantidade: data.quantidade,
-      quantidadeMinima: data.quantidadeMinima,
-      preco: data.preco,
-      unidade: data.unidade,
-      observacao: data.observacao || '',
-      ultimaMovimentacao: new Date().toISOString(),
-      statusEstoque: calcularStatusEstoque(data.quantidade, data.quantidadeMinima),
-    };
+    let novoProduto: Produto;
+
+    try {
+      const produtoApi = await produtoService.criarProduto(data);
+      novoProduto = {
+        ...produtoApi,
+        preco: Number(produtoApi.preco),
+        statusEstoque: produtoApi.statusEstoque || calcularStatusEstoque(Number(produtoApi.quantidade), Number(produtoApi.quantidadeMinima))
+      };
+    } catch (apiError) {
+      console.warn('API falhou ao criar produto. Salvando no modo offline.', apiError);
+      novoProduto = {
+        id: `prod_${Date.now()}`,
+        nome: data.nome,
+        categoriaId: data.categoriaId,
+        quantidade: data.quantidade,
+        quantidadeMinima: data.quantidadeMinima,
+        preco: data.preco,
+        unidade: data.unidade,
+        observacao: data.observacao || '',
+        ultimaMovimentacao: new Date().toISOString(),
+        statusEstoque: calcularStatusEstoque(data.quantidade, data.quantidadeMinima),
+      };
+    }
 
     const novosProdutos = [novoProduto, ...state.produtos];
     await persistirProdutos(novosProdutos);
@@ -113,13 +146,26 @@ export const ProductsProvider = ({ children }: { children: ReactNode }) => {
     const produtoAtual = state.produtos.find((p) => p.id === id);
     if (!produtoAtual) throw new Error('Produto não encontrado');
 
-    const produtoAtualizado: Produto = {
-      ...produtoAtual,
-      ...data,
-      observacao: data.observacao || '',
-      ultimaMovimentacao: new Date().toISOString(),
-      statusEstoque: calcularStatusEstoque(data.quantidade, data.quantidadeMinima),
-    };
+    let produtoAtualizado: Produto;
+
+    try {
+      const produtoApi = await produtoService.atualizarProduto(id, data);
+      produtoAtualizado = {
+        ...produtoAtual,
+        ...produtoApi,
+        preco: Number(produtoApi.preco),
+        statusEstoque: produtoApi.statusEstoque || calcularStatusEstoque(Number(produtoApi.quantidade), Number(produtoApi.quantidadeMinima))
+      };
+    } catch (apiError) {
+      console.warn('API falhou ao editar produto. Salvando no modo offline.', apiError);
+      produtoAtualizado = {
+        ...produtoAtual,
+        ...data,
+        observacao: data.observacao || '',
+        ultimaMovimentacao: new Date().toISOString(),
+        statusEstoque: calcularStatusEstoque(data.quantidade, data.quantidadeMinima),
+      };
+    }
 
     const novosProdutos = state.produtos.map((p) => (p.id === id ? produtoAtualizado : p));
     await persistirProdutos(novosProdutos);
@@ -127,6 +173,11 @@ export const ProductsProvider = ({ children }: { children: ReactNode }) => {
   }, [state.produtos]);
 
   const deletarProduto = useCallback(async (id: string) => {
+    try {
+      await produtoService.deletarProduto(id);
+    } catch (apiError) {
+      console.warn('API falhou ao deletar produto. Deletando apenas do modo offline.', apiError);
+    }
     const novosProdutos = state.produtos.filter((p) => p.id !== id);
     await persistirProdutos(novosProdutos);
     dispatch({ type: 'DELETE', payload: id });
