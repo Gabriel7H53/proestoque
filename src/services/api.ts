@@ -6,6 +6,8 @@ const API_URL =
   (Constants.expoConfig?.extra?.apiUrl as string) ??
   "http://localhost:3333/api";
 
+console.log('=== API BASE URL SENDING TO AXIOS ===', API_URL);
+
 export const api = axios.create({
   baseURL: API_URL,
   timeout: 10000,
