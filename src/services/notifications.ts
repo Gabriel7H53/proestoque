@@ -79,11 +79,15 @@ export async function agendarVerificacaoDiaria() {
       body: 'Não se esqueça de conferir e atualizar os níveis de estoque no painel do ProEstoque!',
       sound: true,
     },
-    trigger: {
+    trigger: Platform.OS === 'ios' ? {
       type: 'calendar',
       hour: 9,
       minute: 0,
       repeats: true,
+    } as any : {
+      type: 'daily',
+      hour: 9,
+      minute: 0,
     } as any,
   });
 }
