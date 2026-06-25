@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { theme } from '../../../src/constants/theme';
 import { useProducts, Produto } from '../../../src/contexts/ProductsContext';
 import { useCategorias } from '../../../src/hooks/useCategorias';
-import { LoadingView } from '../../../src/components/LoadingView';
+import { ProdutoListaSkeleton } from '../../../src/components/ProdutoSkeleton';
 import { ErrorView } from '../../../src/components/ErrorView';
 
 export default function ProdutosListScreen() {
@@ -121,9 +121,6 @@ export default function ProdutosListScreen() {
     </View>
   ), []);
 
-  if (isLoading && produtos.length === 0) {
-    return <LoadingView mensagem="Buscando produtos..." />;
-  }
 
   if (error && produtos.length === 0) {
     return <ErrorView mensagem={error} onRetry={carregarProdutos} />;
@@ -183,22 +180,39 @@ export default function ProdutosListScreen() {
           </View>
         )}
 
-        <FlatList
-          data={filteredProducts}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          ListEmptyComponent={renderEmptyComponent}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[theme.colors.primary[500]]}
-              tintColor={theme.colors.primary[500]}
-            />
-          }
-        />
+        {isLoading && produtos.length === 0 ? (
+          <ScrollView
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[theme.colors.primary[500]]}
+                tintColor={theme.colors.primary[500]}
+              />
+            }
+          >
+            <ProdutoListaSkeleton />
+          </ScrollView>
+        ) : (
+          <FlatList
+            data={filteredProducts}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            ListEmptyComponent={renderEmptyComponent}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[theme.colors.primary[500]]}
+                tintColor={theme.colors.primary[500]}
+              />
+            }
+          />
+        )}
 
         <TouchableOpacity 
           style={styles.fab}

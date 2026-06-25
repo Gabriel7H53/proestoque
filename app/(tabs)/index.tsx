@@ -5,7 +5,8 @@ import {
   StyleSheet, 
   FlatList, 
   RefreshControl, 
-  TouchableOpacity 
+  TouchableOpacity,
+  ScrollView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,7 +16,8 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useProducts, Produto } from '../../src/contexts/ProductsContext';
 import { useCategorias } from '../../src/hooks/useCategorias';
-import { LoadingView } from '../../src/components/LoadingView';
+import { Skeleton } from '../../src/components/Skeleton';
+import { ProdutoListaSkeleton } from '../../src/components/ProdutoSkeleton';
 import { ErrorView } from '../../src/components/ErrorView';
 
 export default function HomeScreen() {
@@ -110,45 +112,77 @@ export default function HomeScreen() {
 
         <View style={styles.summaryGrid}>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryCardValue}>{totalProdutos}</Text>
+            {isLoading && produtos.length === 0 ? (
+              <Skeleton width={40} height={28} borderRadius={4} style={{ marginBottom: 4 }} />
+            ) : (
+              <Text style={styles.summaryCardValue}>{totalProdutos}</Text>
+            )}
             <Text style={styles.summaryCardLabel}>Produtos</Text>
           </View>
           <View style={[styles.summaryCard, styles.summaryCardWarning]}>
-            <Text style={styles.summaryCardValueWarning}>{produtosBaixoEstoque.length}</Text>
+            {isLoading && produtos.length === 0 ? (
+              <Skeleton width={40} height={28} borderRadius={4} style={{ marginBottom: 4 }} />
+            ) : (
+              <Text style={styles.summaryCardValueWarning}>{produtosBaixoEstoque.length}</Text>
+            )}
             <Text style={styles.summaryCardLabelWarning}>Alertas</Text>
           </View>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryCardValue}>{totalCategorias}</Text>
+            {isLoading && produtos.length === 0 ? (
+              <Skeleton width={40} height={28} borderRadius={4} style={{ marginBottom: 4 }} />
+            ) : (
+              <Text style={styles.summaryCardValue}>{totalCategorias}</Text>
+            )}
             <Text style={styles.summaryCardLabel}>Categorias</Text>
           </View>
           <View style={[styles.summaryCard, styles.summaryCardSuccess]}>
-            <Text style={styles.summaryCardValueSuccess}>{formatarPreco(valorTotal)}</Text>
+            {isLoading && produtos.length === 0 ? (
+              <Skeleton width={80} height={28} borderRadius={4} style={{ marginBottom: 4 }} />
+            ) : (
+              <Text style={styles.summaryCardValueSuccess}>{formatarPreco(valorTotal)}</Text>
+            )}
             <Text style={styles.summaryCardLabelSuccess}>Valor</Text>
           </View>
         </View>
 
-        {produtosBaixoEstoque.length > 0 && (
+        {isLoading && produtos.length === 0 ? (
           <View style={styles.alertsSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>⚠️ Alertas de Estoque</Text>
-              {produtosBaixoEstoque.length > 3 && (
-                <TouchableOpacity onPress={() => router.push('/(tabs)/produtos')}>
-                  <Text style={styles.seeAllText}>Ver todos</Text>
-                </TouchableOpacity>
-              )}
             </View>
-            {produtosBaixoEstoque.slice(0, 3).map(produto => (
-              <View key={`alert-${produto.id}`} style={styles.alertItem}>
-                <View style={styles.alertItemLeft}>
-                  <Ionicons name="warning-outline" size={20} color={theme.colors.danger.base} />
-                  <Text style={styles.alertItemName} numberOfLines={1}>{produto.nome}</Text>
-                </View>
-                <Text style={styles.alertItemQtd}>
-                  {produto.quantidade} {produto.unidade}
-                </Text>
-              </View>
-            ))}
+            <View style={[styles.alertItem, { gap: 8 }]}>
+              <Skeleton width={20} height={20} borderRadius={10} />
+              <Skeleton width="60%" height={16} borderRadius={4} />
+            </View>
+            <View style={[styles.alertItem, { gap: 8 }]}>
+              <Skeleton width={20} height={20} borderRadius={10} />
+              <Skeleton width="40%" height={16} borderRadius={4} />
+            </View>
           </View>
+        ) : (
+          produtosBaixoEstoque.length > 0 && (
+            <View style={styles.alertsSection}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>⚠️ Alertas de Estoque</Text>
+                {produtosBaixoEstoque.length > 3 && (
+                  <TouchableOpacity onPress={() => router.push('/(tabs)/produtos')}>
+                    <Text style={styles.seeAllText}>Ver todos</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              {produtosBaixoEstoque.slice(0, 3).map(produto => (
+                <View key={`alert-${produto.id}`} style={styles.alertItem}>
+                  <View style={styles.alertItemLeft}>
+                    <Ionicons name="warning-outline" size={20} color={theme.colors.danger.base} />
+                    <Text style={styles.alertItemName} numberOfLines={1}>{produto.nome}</Text>
+                  </View>
+                  <Text style={styles.alertItemQtd}>
+                    {produto.quantidade} {produto.unidade}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )
         )}
 
         <Text style={[styles.sectionTitle, styles.recentProductsTitle]}>Produtos recentes</Text>
@@ -185,7 +219,26 @@ export default function HomeScreen() {
   ), []);
 
   if (isLoading && produtos.length === 0) {
-    return <LoadingView mensagem="Carregando dashboard..." />;
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[theme.colors.primary[500]]}
+              tintColor={theme.colors.primary[500]}
+            />
+          }
+        >
+          {renderHeader()}
+          <View style={{ paddingHorizontal: theme.spacing[4] }}>
+            <ProdutoListaSkeleton />
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
   }
 
   if (error && produtos.length === 0) {

@@ -5,7 +5,7 @@ module.exports = {
   expo: {
     ...appConfig.expo,
     extra: {
-      apiUrl: process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3333/api",
+      apiUrl: process.env.EXPO_PUBLIC_API_URL ?? "https://proestoque-api-production-83b9.up.railway.app",
     }
   }
 };

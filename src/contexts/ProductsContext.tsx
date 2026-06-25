@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback, ReactNode } from 'react';
 import { api } from '../services/api';
 import { useAuth } from './AuthContext';
+import { notificarEstoqueCritico, limparBadge } from '../services/notifications';
 
 export type Produto = {
   id: string;
@@ -90,6 +91,16 @@ export const ProductsProvider = ({ children }: { children: ReactNode }) => {
     try {
       const response = await api.get<Produto[]>('/produtos');
       dispatch({ type: 'LOAD_SUCCESS', payload: response.data });
+      
+      // Verificação de estoque crítico
+      const produtosCriticos = response.data.filter(
+        (p) => p.quantidade < p.quantidadeMinima
+      );
+      if (produtosCriticos.length > 0) {
+        await notificarEstoqueCritico(produtosCriticos.length);
+      } else {
+        await limparBadge();
+      }
     } catch (err: any) {
       console.error('Erro ao carregar produtos:', err.message);
       dispatch({ type: 'LOAD_ERROR', payload: err.message || 'Erro ao carregar produtos' });

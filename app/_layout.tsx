@@ -6,11 +6,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../src/constants/theme';
 import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
 import { ProductsProvider } from '../src/contexts/ProductsContext';
+import { solicitarPermissaoNotificacoes, agendarVerificacaoDiaria } from '../src/services/notifications';
 
 function NavigationGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      const initNotifications = async () => {
+        const concedido = await solicitarPermissaoNotificacoes();
+        if (concedido) {
+          await agendarVerificacaoDiaria();
+        }
+      };
+      initNotifications();
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (isLoading) return;
